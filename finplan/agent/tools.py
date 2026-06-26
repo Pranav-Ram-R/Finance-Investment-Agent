@@ -13,7 +13,9 @@ from langchain_core.tools import tool
 
 from finplan.memory import store
 from finplan.parsing import parse_amount
+from finplan.tools.news import get_news_sentiment as _get_news_sentiment
 from finplan.planner import _class_stats
+from finplan.planner import generate_multi_goal_plan as _generate_multi_goal_plan
 from finplan.planner import generate_plan as _generate_plan
 from finplan.tools.feasibility import check_feasibility as _check_feasibility
 from finplan.tools.feasibility import inflation_adjusted_goal as _inflation_adjusted_goal
@@ -23,6 +25,7 @@ from finplan.tools.risk import assess_risk_profile as _assess_risk_profile
 from finplan.tools.risk import blended_portfolio_stats
 from finplan.tools.risk import recommend_allocation as _recommend_allocation
 from finplan.tools.simulation import monte_carlo_simulation
+from finplan.tools.tax import apply_ltcg_tax as _apply_ltcg_tax
 
 Amount = float | str  # money args accept a number or text like "50 lakh"
 
@@ -53,6 +56,33 @@ def generate_plan(
     return _generate_plan(
         parse_amount(initial), parse_amount(monthly), years, parse_amount(goal), risk_tolerance
     )
+
+
+@tool
+def generate_multi_goal_plan(goals: list[dict]) -> dict:
+    """Plan MULTIPLE goals at once — use when the user has two or more goals.
+
+    Pass a list of goal objects, each with: initial, monthly, years, goal, and
+    risk_tolerance ('low'/'medium'/'high'). Money may be text like "5 lakh".
+    Example:
+        [{"initial": "2 lakh", "monthly": "15000", "years": 12, "goal": "50 lakh", "risk_tolerance": "medium"},
+         {"initial": 0, "monthly": "5000", "years": 5, "goal": "5 lakh", "risk_tolerance": "low"}]
+
+    Builds a full plan for each goal and returns them plus combined totals
+    (total monthly SIP, combined post-tax corpus). Each goal is planned
+    independently — there is no shared-budget split.
+    """
+    parsed = [
+        {
+            "initial": parse_amount(g["initial"]),
+            "monthly": parse_amount(g["monthly"]),
+            "years": g["years"],
+            "goal": parse_amount(g["goal"]),
+            "risk_tolerance": g.get("risk_tolerance", "medium"),
+        }
+        for g in goals
+    ]
+    return _generate_multi_goal_plan(parsed)
 
 
 # --------------------------------------------------------------------------- #
@@ -129,6 +159,28 @@ def inflation_adjusted_goal(goal: Amount, years: float, inflation: float = 0.06)
             "future_value_needed": _inflation_adjusted_goal(g, years, inflation)}
 
 
+@tool
+def estimate_ltcg_tax(corpus: Amount, total_invested: Amount) -> dict:
+    """Estimate Long-Term Capital Gains tax and the post-tax corpus on redemption.
+
+    Uses the equity LTCG rule (12.5% on gains above a ₹1.25 lakh exemption). Use
+    for what-if questions about take-home value after tax. Money amounts may be
+    text like "50 lakh". This is a simplified estimate, not tax advice."""
+    return _apply_ltcg_tax(parse_amount(corpus), parse_amount(total_invested))
+
+
+@tool
+def get_news_sentiment(ticker: str = "^NSEI") -> dict:
+    """Read the current market "mood" from recent headlines for a ticker.
+
+    ``ticker`` is a Yahoo Finance symbol (default '^NSEI', the Nifty 50; e.g.
+    'RELIANCE.NS' for a stock). Returns a positive/neutral/negative label, a
+    score, and the headlines used. This is QUALITATIVE context only — it does
+    NOT change any projection, return, or allocation. Use it when the user asks
+    about current market sentiment or news, and present it as soft context."""
+    return _get_news_sentiment(ticker)
+
+
 # --------------------------------------------------------------------------- #
 # Memory tools (persistent across sessions)
 # --------------------------------------------------------------------------- #
@@ -191,6 +243,7 @@ def check_progress() -> dict:
 
 ALL_TOOLS = [
     generate_plan,            # primary: full plan in one deterministic call
+    generate_multi_goal_plan, # primary: several goals at once, aggregated
     assess_risk_profile,
     recommend_allocation,
     get_portfolio_market_data,
@@ -198,6 +251,8 @@ ALL_TOOLS = [
     run_monte_carlo,
     check_feasibility,
     inflation_adjusted_goal,
+    estimate_ltcg_tax,
+    get_news_sentiment,
     save_plan,
     get_saved_plan,
     log_contribution,

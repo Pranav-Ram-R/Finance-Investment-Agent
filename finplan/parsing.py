@@ -49,6 +49,8 @@ def _indian_group(n: int) -> str:
     if len(s) <= 3:
         body = s
     else:
+        # Indian grouping is the last 3 digits, then 2-digit groups (12,34,56,789),
+        # unlike the Western 3-3-3. Peel the last 3, then chunk the rest in pairs.
         last3, rest = s[-3:], s[:-3]
         groups = []
         while len(rest) > 2:

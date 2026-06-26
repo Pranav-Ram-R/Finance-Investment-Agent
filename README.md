@@ -29,7 +29,12 @@ convert anything. If a detail is missing, the agent asks before proceeding.
 
 **2. What-if follow-ups** (same conversation, via the granular tools):
 *"bump the SIP to ₹20k"*, *"extend to 15 years"*, *"what return would I need?"*,
-*"show a more aggressive allocation"*, *"adjust my target for inflation"*.
+*"show a more aggressive allocation"*, *"adjust my target for inflation"*,
+*"what's my corpus after LTCG tax?"*, *"what's the current market mood for Nifty?"*.
+
+**Multiple goals at once** — *"I want ₹50L for retirement in 20 years and ₹15L for
+a car in 5 years"* → each goal is planned independently and the totals (combined
+monthly SIP, combined post-tax corpus) are summed.
 
 **3. Messy / partial input** — vague risk (*"I'm cautious"*), missing fields, or
 a goal in today's money (handled via the inflation-adjusted target).
@@ -125,8 +130,10 @@ finplan/
     risk.py            # risk profile + allocation + portfolio blend
     simulation.py      # Monte-Carlo outcome range + goal probability
     feasibility.py     # solvers: required SIP / years / return; inflation
+    tax.py             # post-tax corpus via a deterministic LTCG estimate
+    news.py            # "market mood" from yfinance headlines + a lexicon
   agent/
-    tools.py           # 11 LangChain tools wrapping the engine
+    tools.py           # 15 LangChain tools wrapping the engine
     prompts.py         # workflow-enforcing system prompt
     planner_agent.py   # create_agent + memory + run_turn
   memory/
@@ -134,7 +141,7 @@ finplan/
 scripts/
   demo_engine.py       # end-to-end engine demo (no API key needed)
   chat.py              # terminal chat with the agent
-tests/                 # 33 unit tests (engine, memory, UI boot) + opt-in live
+tests/                 # 48 unit tests (engine, memory, UI boot) + opt-in live
 app.py                 # Streamlit UI (chat + charts + tool-call trace)
 ```
 
@@ -143,10 +150,12 @@ app.py                 # Streamlit UI (chat + charts + tool-call trace)
 - [x] Swappable multi-model config (Gemini / Groq / DeepSeek / Mistral)
 - [x] Deterministic engine: market-data, projection, risk/allocation,
       Monte-Carlo, feasibility solvers (corrupt-tick handling)
-- [x] LangChain agent (`create_agent`, 11 tools) + conversation & SQLite memory
+- [x] LangChain agent (`create_agent`, 15 tools) + conversation & SQLite memory
 - [x] Streamlit UI with allocation, projection + Monte-Carlo charts, tool trace
 - [x] Runs on LangGraph under the hood (the agent graph is already inspectable)
-- [ ] Stretch: news-sentiment tool, tax-aware (LTCG) projections, multi-goal
+- [x] Tax-aware: post-tax corpus via a deterministic LTCG estimate (12.5% over ₹1.25L)
+- [x] Multi-goal planning: plan several goals at once with combined totals
+- [x] News-sentiment "market mood" tool (yfinance headlines + a finance lexicon)
 
 ## Disclaimer
 

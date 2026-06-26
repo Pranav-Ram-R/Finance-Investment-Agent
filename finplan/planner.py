@@ -19,6 +19,7 @@ from finplan.tools.risk import (
     recommend_allocation,
 )
 from finplan.tools.simulation import monte_carlo_simulation
+from finplan.tools.tax import apply_ltcg_tax
 
 # Conservative fallbacks if a ticker can't be fetched (e.g. no network).
 _FALLBACK = {
@@ -72,6 +73,7 @@ def generate_plan(
     mc = monte_carlo_simulation(initial, monthly, years, expected_return, volatility, goal=goal)
     feasibility = check_feasibility(initial, monthly, years, expected_return, goal)
     infl_goal = inflation_adjusted_goal(goal, years, inflation)
+    tax = apply_ltcg_tax(projection["future_value"], projection["total_invested"])
 
     diff = feasibility["difference"]
     levers = feasibility["to_reach_goal"]
@@ -90,6 +92,8 @@ def generate_plan(
         "required_years": levers["required_years"],
         "required_annual_return": f"{req_ret * 100:.2f}%" if req_ret is not None else "n/a",
         "inflation_adjusted_goal": format_inr(infl_goal),
+        "post_tax_corpus": format_inr(tax["post_tax_corpus"]),
+        "estimated_ltcg_tax": format_inr(tax["estimated_tax"]),
     }
 
     return {
@@ -108,5 +112,48 @@ def generate_plan(
         "monte_carlo": mc,
         "feasibility": feasibility,
         "inflation_adjusted_goal": infl_goal,
+        "tax": tax,
         "summary": summary,
     }
+
+
+def generate_multi_goal_plan(goals: list[dict]) -> dict:
+    """Plan several goals at once by running :func:`generate_plan` per goal.
+
+    Each goal dict carries the same inputs as a single plan (``initial``,
+    ``monthly``, ``years``, ``goal``, optional ``risk_tolerance``). Goals are
+    planned INDEPENDENTLY and the contributions/corpora summed — there is no
+    shared-budget optimization (kept simple on purpose). Returns the full plan
+    per goal plus combined totals the LLM can quote verbatim.
+    """
+    plans = [
+        generate_plan(
+            g["initial"], g["monthly"], g["years"], g["goal"],
+            g.get("risk_tolerance", "medium"),
+        )
+        for g in goals
+    ]
+
+    total_initial = sum(p["inputs"]["initial"] for p in plans)
+    total_monthly = sum(p["inputs"]["monthly"] for p in plans)
+    combined_post_tax = sum(p["tax"]["post_tax_corpus"] for p in plans)
+
+    summary = {
+        "num_goals": len(plans),
+        "total_initial": format_inr(total_initial),
+        "total_monthly_sip": format_inr(total_monthly),
+        "combined_post_tax_corpus": format_inr(combined_post_tax),
+        "all_on_track": all(p["feasibility"]["on_track"] for p in plans),
+        "per_goal": [
+            {
+                "goal": p["summary"]["goal"],
+                "monthly_sip": format_inr(p["inputs"]["monthly"]),
+                "projected_corpus": p["summary"]["projected_corpus"],
+                "post_tax_corpus": p["summary"]["post_tax_corpus"],
+                "status": p["summary"]["status"],
+            }
+            for p in plans
+        ],
+    }
+
+    return {"goals": plans, "summary": summary}
