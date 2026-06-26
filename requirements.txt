@@ -1,0 +1,19 @@
+# --- Core agent framework ---
+langchain>=0.3.0
+langchain-google-genai>=2.0.0   # default provider (Gemini, free tier)
+langchain-groq>=0.2.0           # fast fallback (Llama / DeepSeek-R1)
+
+# --- Market data & math ---
+yfinance>=0.2.40
+pandas>=2.0.0
+numpy>=1.26.0
+
+# --- App & tooling ---
+python-dotenv>=1.0.0
+streamlit>=1.30.0
+plotly>=5.18.0
+pytest>=8.0.0
+
+# --- Optional providers (uncomment if you set them in .env) ---
+# langchain-deepseek>=0.1.0
+# langchain-mistralai>=0.2.0
