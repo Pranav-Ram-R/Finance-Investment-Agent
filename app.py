@@ -96,6 +96,7 @@ def extract_chart_components(cap: dict) -> dict:
         out["proj"] = gp.get("projection")
         out["mc"] = gp.get("monte_carlo")
         out["feas"] = gp.get("feasibility")
+        out["tax"] = gp.get("tax")
     granular_alloc = (cap.get("get_portfolio_market_data") or cap.get("recommend_allocation") or {}).get("allocation")
     if granular_alloc:
         out["alloc"] = granular_alloc
@@ -122,6 +123,14 @@ def render_charts(comp: dict) -> None:
             "On track?",
             "Yes ✅" if feas["on_track"] else "Short ⚠️",
             delta=f"₹{feas['difference']:,.0f}",
+        )
+
+    tax = comp.get("tax")
+    if tax:
+        st.caption(
+            f"After estimated LTCG tax (12.5% over a ₹1.25L exemption): "
+            f"**₹{tax['post_tax_corpus']:,.0f}** post-tax corpus "
+            f"(est. tax ₹{tax['estimated_tax']:,.0f}). Not tax advice."
         )
 
     left, right = st.columns(2)
@@ -156,6 +165,31 @@ def render_charts(comp: dict) -> None:
             f"₹{goal:,.0f}. Range at horizon: ₹{mc['p10']:,.0f} (p10) → "
             f"₹{mc['median']:,.0f} (median) → ₹{mc['p90']:,.0f} (p90)."
         )
+
+
+def render_multi_goal(multi: dict) -> None:
+    """Render the combined totals + per-goal table for a multi-goal plan."""
+    s = multi["summary"]
+    st.subheader(f"Multi-goal plan — {s['num_goals']} goals")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total monthly SIP", s["total_monthly_sip"])
+    c2.metric("Combined post-tax corpus", s["combined_post_tax_corpus"])
+    c3.metric("All on track?", "Yes ✅" if s["all_on_track"] else "Some short ⚠️")
+    st.table(s["per_goal"])
+
+
+def render_sentiment(sent: dict) -> None:
+    """Render the 'market mood' read as soft context (never affects the numbers)."""
+    if sent.get("status") != "ok":
+        st.info("📰 No recent headlines available for a sentiment read right now.")
+        return
+    emoji = {"positive": "🟢", "neutral": "⚪", "negative": "🔴"}.get(sent["label"], "⚪")
+    headlines = "\n".join(f"- {h['headline']}" for h in sent["headlines"][:5])
+    st.info(
+        f"📰 **Market mood for {sent['ticker']}: {emoji} {sent['label']}** "
+        f"(score {sent['score']:+.2f}, from recent headlines — informational only, "
+        f"it does not change the plan's numbers):\n{headlines}"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -224,12 +258,23 @@ if prompt := st.chat_input("Describe your financial goal…"):
         components = dict(st.session_state.get("charts") or {})
         components.update(fresh)
         st.session_state.charts = components
+    if captured.get("generate_multi_goal_plan"):
+        st.session_state.multi = captured["generate_multi_goal_plan"]
+    if captured.get("get_news_sentiment"):
+        st.session_state.sentiment = captured["get_news_sentiment"]
     if trace:  # keep the last tool-call trace visible across pure-chat turns
         st.session_state.trace = trace
 
 if st.session_state.get("charts"):
     st.divider()
     render_charts(st.session_state.charts)
+
+if st.session_state.get("multi"):
+    st.divider()
+    render_multi_goal(st.session_state.multi)
+
+if st.session_state.get("sentiment"):
+    render_sentiment(st.session_state.sentiment)
 
 if st.session_state.get("trace"):
     with st.expander("🔍 How the agent reasoned (tool-call trace)"):

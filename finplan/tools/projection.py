@@ -9,6 +9,8 @@ from __future__ import annotations
 
 def _monthly_rate(annual_return: float) -> float:
     """Convert an annual return to its equivalent monthly compounding rate."""
+    # 12th root, NOT annual/12: this way 12 months compound back to exactly
+    # annual_return (e.g. 12% -> 0.949%/mo, not 1%/mo).
     return (1 + annual_return) ** (1 / 12) - 1
 
 

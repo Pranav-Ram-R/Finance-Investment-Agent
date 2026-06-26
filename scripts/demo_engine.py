@@ -19,6 +19,7 @@ from finplan.tools.risk import (
     recommend_allocation,
 )
 from finplan.tools.simulation import monte_carlo_simulation
+from finplan.tools.tax import apply_ltcg_tax
 
 try:  # make ₹ / unicode safe on any console
     sys.stdout.reconfigure(encoding="utf-8")
@@ -97,6 +98,12 @@ def main() -> None:
 
     infl = inflation_adjusted_goal(goal, years)
     print(f"8) INFLATION    : Rs {goal:,} today ~= Rs {infl:,.0f} in {years}y at 6% (the real target)")
+
+    tax = apply_ltcg_tax(proj["future_value"], proj["total_invested"])
+    print(
+        f"9) AFTER-TAX    : Rs {tax['post_tax_corpus']:,.0f} post-tax "
+        f"(LTCG Rs {tax['estimated_tax']:,.0f} = 12.5% over Rs 1,25,000 exemption)"
+    )
 
 
 if __name__ == "__main__":

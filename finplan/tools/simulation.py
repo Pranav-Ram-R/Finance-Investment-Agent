@@ -31,13 +31,16 @@ def monte_carlo_simulation(
     """
     months = int(round(years * 12))
     monthly_mean = (1 + annual_return) ** (1 / 12) - 1
+    # √time scaling: variance grows linearly with time, so stdev scales by √12.
     monthly_vol = annual_volatility / np.sqrt(12)
 
     rng = np.random.default_rng(seed)
+    # One big draw of every monthly return for every path (n_sims × months).
     draws = rng.normal(monthly_mean, monthly_vol, size=(n_sims, months))
 
     balances = np.full(n_sims, float(initial))
     for m in range(months):
+        # Vectorized: steps ALL n_sims paths forward one month at once (no per-path loop).
         balances = balances * (1 + draws[:, m]) + monthly
 
     p10, p25, p50, p75, p90 = (

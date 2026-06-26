@@ -22,6 +22,7 @@ def _required_monthly(initial: float, goal: float, years: float, annual_return: 
         return 0.0
     if r == 0:
         return needed / months
+    # Invert the SIP (ordinary-annuity) future-value formula to solve for the payment.
     annuity_factor = ((1 + r) ** months - 1) / r
     return needed / annuity_factor
 
@@ -34,6 +35,8 @@ def _required_years(
     bal = float(initial)
     if bal >= goal:
         return 0.0
+    # Lump sum + SIP has no clean closed form for "years", so step month-by-month
+    # until the balance clears the goal (capped at max_months so it always halts).
     for m in range(1, max_months + 1):
         bal = bal * (1 + r) + monthly
         if bal >= goal:
