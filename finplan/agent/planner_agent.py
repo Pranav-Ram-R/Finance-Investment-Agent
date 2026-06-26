@@ -27,6 +27,8 @@ def build_agent(checkpointer=None):
         restarts.
     """
     model = get_chat_model("orchestrator")
+    # create_agent is LangChain v1's LangGraph-based builder (NOT the legacy
+    # AgentExecutor). The checkpointer is what gives the agent multi-turn memory.
     return create_agent(
         model,
         ALL_TOOLS,
@@ -60,6 +62,8 @@ def run_turn(agent, message: str, thread_id: str = "default") -> str:
     ``thread_id`` selects the conversation; reusing it preserves memory across
     turns. A new id starts a fresh conversation.
     """
+    # thread_id keys the checkpointer's saved history; invoke returns the FULL
+    # message list, so we take the last message as the assistant's reply.
     result = agent.invoke(
         {"messages": [{"role": "user", "content": message}]},
         config={"configurable": {"thread_id": thread_id}},

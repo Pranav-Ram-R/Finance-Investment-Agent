@@ -61,10 +61,14 @@ def compute_asset_stats(close: pd.Series, ticker: str, name: str | None = None) 
     if len(close) < 2:
         raise ValueError(f"Insufficient price history for {ticker!r}")
 
+    # CAGR over the ACTUAL span of the data (365.25 absorbs leap years), not a
+    # fixed window — so "10y" data that's really 9.99y is annualized correctly.
     span_days = (close.index[-1] - close.index[0]).days
     years = max(span_days / 365.25, 1e-9)
     cagr = (close.iloc[-1] / close.iloc[0]) ** (1 / years) - 1
 
+    # Annualized volatility = stdev of DAILY returns × √(trading days/yr).
+    # Drop corrupt ticks (|move| > 50%) first so one bad print can't inflate it.
     daily = close.pct_change().dropna()
     clean = daily[daily.abs() <= _MAX_SANE_DAILY_RETURN]
     volatility = float(clean.std() * np.sqrt(TRADING_DAYS))
@@ -102,6 +106,7 @@ def get_asset_data(ticker: str, period: str = "10y") -> dict:
         If no usable price history is returned.
     """
     t = yf.Ticker(ticker)
+    # auto_adjust=True gives split/dividend-adjusted closes (the series we want).
     hist = t.history(period=period, auto_adjust=True)
     if hist.empty or "Close" not in hist:
         raise ValueError(f"No price data for ticker {ticker!r}")

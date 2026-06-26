@@ -25,11 +25,13 @@ def parse_amount(value: float | int | str) -> float:
     if isinstance(value, (int, float)):
         return float(value)
 
+    # Normalize: lowercase, drop digit-group commas and any currency symbol.
     s = str(value).strip().lower().replace(",", "")
     for sym in ("₹", "inr", "rs.", "rs"):
         s = s.replace(sym, "")
     s = s.strip()
 
+    # Strip a trailing unit word ("lakh"/"crore"/"k"…) and remember its multiplier.
     multiplier = 1.0
     for unit, factor in _UNITS:
         if s.endswith(unit):
@@ -37,6 +39,7 @@ def parse_amount(value: float | int | str) -> float:
             s = s[: -len(unit)].strip()
             break
 
+    # Pull the leading number out of whatever remains and scale it.
     match = re.search(r"-?\d+(\.\d+)?", s)
     if not match:
         raise ValueError(f"could not parse a money amount from {value!r}")

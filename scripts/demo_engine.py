@@ -36,6 +36,8 @@ FALLBACK = {
 
 def gather_asset_stats(period: str = "10y") -> dict:
     """Fetch real return/risk per asset class, falling back to assumptions."""
+    # Mirrors planner._class_stats: try live data per class, but never let a
+    # missing ticker or offline run break the demo — fall back to assumed numbers.
     stats = {}
     for cls in ("equity", "debt", "gold"):
         ticker = DEFAULT_TICKERS[cls]
@@ -52,6 +54,8 @@ def gather_asset_stats(period: str = "10y") -> dict:
 
 
 def main() -> None:
+    # Walks the same 9-step pipeline as planner.generate_plan, but prints each
+    # step so you can see the engine working with NO LLM and NO API key.
     # ---- user inputs ----
     initial, monthly, years, goal, tolerance = 200_000, 15_000, 12, 5_000_000, "medium"
     print(
