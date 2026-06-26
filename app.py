@@ -26,6 +26,8 @@ st.set_page_config(page_title="FinPlan — Goal-Based Investment Planner", page_
 
 
 def _has_key() -> bool:
+    # True only if a real key is set — the "your-" check rejects the .env.example
+    # placeholder so we show a helpful error instead of a confusing API failure.
     return any(
         (os.getenv(k) or "") and "your-" not in (os.getenv(k) or "")
         for k in ("GOOGLE_API_KEY", "GROQ_API_KEY")
@@ -65,6 +67,9 @@ def invoke_agent(user_msg: str, thread_id: str):
     )
     captured: dict = {}
     trace: list[str] = []
+    # Walk the turn's messages: AIMessages carry tool_calls (the request the model
+    # made); ToolMessages carry the result. We log both for the trace, and keep the
+    # parsed tool results in `captured` to build the charts.
     for m in _current_turn_messages(result["messages"]):
         tool_calls = getattr(m, "tool_calls", None)
         if tool_calls:
@@ -140,12 +145,15 @@ def render_charts(comp: dict) -> None:
         left.plotly_chart(fig, use_container_width=True)
 
     if proj:
+        # Main line: the expected-return growth curve, year by year.
         traj = proj["trajectory"]
         xs = [p["year"] for p in traj]
         ys = [p["value"] for p in traj]
         fig = go.Figure()
         fig.add_scatter(x=xs, y=ys, mode="lines+markers", name="Projected (expected return)")
         if mc:
+            # Overlay the Monte-Carlo uncertainty at the final year: a thick p10–p90
+            # bar plus a median diamond, so the chart shows a RANGE, not one number.
             yr = xs[-1] if xs else proj.get("trajectory", [{}])[-1].get("year", 0)
             fig.add_scatter(
                 x=[yr, yr], y=[mc["p10"], mc["p90"]], mode="lines",
@@ -154,6 +162,7 @@ def render_charts(comp: dict) -> None:
             fig.add_scatter(x=[yr], y=[mc["median"]], mode="markers",
                             name="MC median", marker=dict(size=12, symbol="diamond"))
         if goal:
+            # Dashed horizontal line = the target, so "over/under" is visible at a glance.
             fig.add_hline(y=goal, line_dash="dash", annotation_text="Goal")
         fig.update_layout(title="Projected growth vs goal", xaxis_title="Year",
                           yaxis_title="₹", margin=dict(t=40, b=0))

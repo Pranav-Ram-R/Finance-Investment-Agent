@@ -62,11 +62,14 @@ def project_growth(
     months = int(round(years * 12))
     r = _monthly_rate(annual_return)
 
+    # Lump sum compounds; the SIP is an ordinary annuity. The r==0 branch is the
+    # zero-return edge case (avoids dividing by zero in the annuity factor).
     fv_lump = initial * (1 + r) ** months
     fv_sip = monthly * months if r == 0 else monthly * (((1 + r) ** months - 1) / r)
     total = fv_lump + fv_sip
     total_invested = initial + monthly * months
 
+    # Value at each year-end — this is what the UI plots as the growth curve.
     trajectory = [
         {"year": y, "value": round(_fv_months(initial, monthly, y * 12, r), 2)}
         for y in range(1, int(years) + 1)

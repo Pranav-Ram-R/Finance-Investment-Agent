@@ -1,4 +1,6 @@
-"""Memory package — persistent user profile, goals, plan, and progress log.
+"""Memory package — persistent user plan and progress log.
 
-Populated in the next build step (store.py: SQLite/JSON-backed profile store).
+See ``store.py`` for the SQLite-backed store (saved plans + contribution
+progress) that survives restarts, complementing the agent's in-process
+conversation checkpointer.
 """

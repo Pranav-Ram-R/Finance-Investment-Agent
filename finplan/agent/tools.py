@@ -72,6 +72,8 @@ def generate_multi_goal_plan(goals: list[dict]) -> dict:
     (total monthly SIP, combined post-tax corpus). Each goal is planned
     independently — there is no shared-budget split.
     """
+    # Parse each goal's money fields here (the wrapper's job) so the inner
+    # planner receives plain floats, exactly like the single-goal path.
     parsed = [
         {
             "initial": parse_amount(g["initial"]),
@@ -228,7 +230,10 @@ def check_progress() -> dict:
     latest = history[-1]
     invested, current = latest["amount"], latest["current_value"]
     monthly = plan["monthly"] or 0
+    # Infer how far along the plan we are from how much has been invested:
+    # (total invested - initial lump) / monthly SIP ≈ months elapsed.
     elapsed_months = max(0, round((invested - plan["initial"]) / monthly)) if monthly else 0
+    # Re-run the SAME future-value math to get where the plan EXPECTED them to be by now.
     expected = future_value(plan["initial"], monthly, elapsed_months / 12, plan["expected_return"])
 
     return {
@@ -237,6 +242,7 @@ def check_progress() -> dict:
         "expected_value_now": round(expected, 2),
         "difference": round(current - expected, 2),
         "elapsed_months": elapsed_months,
+        # 5% tolerance band — markets wobble, so "slightly behind" still counts as on track.
         "on_track": current >= expected * 0.95,
     }
 

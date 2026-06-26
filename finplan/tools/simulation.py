@@ -43,6 +43,8 @@ def monte_carlo_simulation(
         # Vectorized: steps ALL n_sims paths forward one month at once (no per-path loop).
         balances = balances * (1 + draws[:, m]) + monthly
 
+    # Percentiles of the 2000 final balances describe the OUTCOME RANGE:
+    # p10 = a bad-luck year, median = typical, p90 = a lucky run.
     p10, p25, p50, p75, p90 = (
         float(x) for x in np.percentile(balances, [10, 25, 50, 75, 90])
     )
@@ -58,6 +60,7 @@ def monte_carlo_simulation(
     }
     if goal is not None:
         result["goal"] = goal
+        # Probability of success = fraction of simulated paths that met the goal.
         result["probability_of_reaching_goal"] = round(
             float((balances >= goal).mean()), 4
         )

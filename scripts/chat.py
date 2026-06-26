@@ -22,6 +22,8 @@ def main() -> None:
           "want 50 lakh, moderate risk.\"\n")
 
     agent = build_agent()
+    # A fixed thread id means every turn shares one conversation (so follow-up
+    # "what-if" questions remember the plan built earlier in the session).
     thread = "cli-session"
     while True:
         try:

@@ -1,4 +1,6 @@
-"""Agent package — LangChain tool-calling agent, prompts, and memory wiring.
+"""Agent package — the LLM layer over the deterministic engine.
 
-Populated in the next build step (planner_agent.py, prompts.py).
+  * ``tools.py``        — LangChain @tool wrappers + the ALL_TOOLS registry
+  * ``prompts.py``      — the workflow-enforcing system prompt
+  * ``planner_agent.py``— build_agent() (create_agent + checkpointer) + run_turn()
 """

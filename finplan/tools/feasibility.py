@@ -16,6 +16,7 @@ def _required_monthly(initial: float, goal: float, years: float, annual_return: 
     """SIP needed to hit ``goal`` (holding initial, years, return fixed)."""
     months = int(round(years * 12))
     r = _monthly_rate(annual_return)
+    # The lump sum grows on its own; the SIP only has to cover whatever gap remains.
     fv_lump = initial * (1 + r) ** months
     needed = goal - fv_lump
     if needed <= 0:  # the lump sum alone already reaches the goal
@@ -48,17 +49,20 @@ def _required_return(
     initial: float, monthly: float, years: float, goal: float, lo: float = -0.5, hi: float = 1.0
 ) -> float | None:
     """Annual return needed to hit ``goal`` (bisection; FV is monotonic in return)."""
+    # f(return) = future_value - goal; it's monotonically increasing in return,
+    # so we can binary-search the rate where f crosses zero.
     f = lambda ar: future_value(initial, monthly, years, ar) - goal  # noqa: E731
     if f(hi) < 0:
         return None  # unreachable by return alone within a sane ceiling (100%/yr)
     if f(lo) > 0:
         return lo  # reachable even with deeply negative returns
+    # 100 bisection steps halve the interval ~1e-30 — far past the 4-dp we round to.
     for _ in range(100):
         mid = (lo + hi) / 2
         if f(mid) < 0:
-            lo = mid
+            lo = mid  # need a higher return
         else:
-            hi = mid
+            hi = mid  # can afford a lower return
     return round((lo + hi) / 2, 4)
 
 

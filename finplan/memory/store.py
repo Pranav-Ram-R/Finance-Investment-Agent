@@ -23,7 +23,10 @@ def _now() -> str:
 
 def _connect(db_path=None) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path or DEFAULT_DB))
+    # Row factory lets us read columns by name (row["goal"]) instead of by index.
     conn.row_factory = sqlite3.Row
+    # CREATE IF NOT EXISTS makes connect idempotent — first run sets up the schema,
+    # later runs are no-ops. Tests pass a temp db_path for full isolation.
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS plans (
@@ -66,6 +69,8 @@ def save_plan(
 ) -> dict:
     """Insert or update (upsert) the user's plan."""
     conn = _connect(db_path)
+    # One plan per user (user_id is the PK), so re-saving overwrites via the
+    # ON CONFLICT clause rather than inserting a duplicate row.
     conn.execute(
         """
         INSERT INTO plans (user_id, initial, monthly, years, goal, profile,

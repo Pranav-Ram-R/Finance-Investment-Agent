@@ -67,12 +67,16 @@ def get_chat_model(role: str = "orchestrator", temperature: float = 0.1):
     if role not in DEFAULTS:
         raise ValueError(f"Unknown role {role!r}; expected one of {list(DEFAULTS)}")
 
+    # Read {ROLE}_MODEL from .env (e.g. ORCHESTRATOR_MODEL), fall back to DEFAULTS,
+    # then expand any preset alias to a full provider:model_id.
     spec = resolve_spec(os.getenv(f"{role.upper()}_MODEL", DEFAULTS[role]))
 
+    # Reasoning models (o1, deepseek-r1…) reject a temperature arg — omit it for them.
     kwargs: dict[str, object] = {}
     if not any(hint in spec.lower() for hint in _REASONING_HINTS):
         kwargs["temperature"] = temperature
 
+    # init_chat_model picks the right provider client from the "provider:" prefix.
     return init_chat_model(spec, **kwargs)
 
 

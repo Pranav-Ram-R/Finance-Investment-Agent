@@ -32,6 +32,8 @@ _BASE_ALLOCATION = {
 
 def _capacity_from_horizon(horizon_years: float) -> int:
     """Objective risk *capacity* implied by the time horizon."""
+    # Longer horizon = more ability to ride out volatility, so higher capacity.
+    # <3y: conservative, 3-7y: moderate, >7y: aggressive (1/2/3 map to _LEVELS).
     if horizon_years < 3:
         return 1
     if horizon_years <= 7:
@@ -52,6 +54,8 @@ def assess_risk_profile(horizon_years: float, stated_tolerance: str = "medium") 
             "low/medium/high (or conservative/moderate/aggressive)"
         )
 
+    # capacity = what the horizon can support; willingness = what the user wants.
+    # Take the LOWER of the two — never push more risk than both agree on.
     capacity = _capacity_from_horizon(horizon_years)
     willingness = _TOLERANCE[tol]
     level = min(capacity, willingness)
@@ -79,7 +83,8 @@ def recommend_allocation(profile: str, horizon_years: float) -> dict:
 
     alloc = dict(_BASE_ALLOCATION[profile])
 
-    # Horizon-based equity ceiling: short-term money shouldn't sit in equities.
+    # Horizon-based equity ceiling: short-term money shouldn't sit in equities
+    # (no time to recover from a crash). The ceiling rises with the horizon.
     if horizon_years < 3:
         ceiling = 30
     elif horizon_years < 5:
@@ -89,6 +94,8 @@ def recommend_allocation(profile: str, horizon_years: float) -> dict:
     else:
         ceiling = 100
 
+    # If the profile's equity exceeds the ceiling, move the excess into debt
+    # so the weights still sum to 100.
     if alloc["equity"] > ceiling:
         moved = alloc["equity"] - ceiling
         alloc["equity"] = ceiling
@@ -127,6 +134,9 @@ def blended_portfolio_stats(allocation: dict, stats_by_class: dict) -> dict:
     if abs(sum(weights.values()) - 1.0) > 1e-6:
         raise ValueError("allocation percentages must sum to 100")
 
+    # Expected return is a clean weighted average. Volatility is too — but a
+    # weighted average of vols assumes perfect correlation (no diversification
+    # benefit), so it's an UPPER BOUND, named accordingly to avoid overstating.
     exp_return = sum(weights[k] * stats_by_class[k]["cagr"] for k in weights)
     vol_upper = sum(weights[k] * stats_by_class[k]["volatility"] for k in weights)
 

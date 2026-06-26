@@ -54,27 +54,35 @@ def generate_plan(
     allocation, the allocation + real market data drive the blended return, and
     that return drives the projection, Monte-Carlo, and feasibility checks.
     """
+    # 1. Risk profile from horizon + stated tolerance.
     profile_info = assess_risk_profile(years, risk_tolerance)
     profile = profile_info["profile"]
 
+    # 2. Allocation driven by that profile (+ horizon de-risking).
     alloc_info = recommend_allocation(profile, years)
     allocation = alloc_info["allocation"]
 
+    # 3. Real return/risk per asset class (cached; falls back if yfinance fails).
     market_data = {}
     for cls in ("equity", "debt", "gold"):
         cagr, vol, source = _class_stats(cls)
         market_data[cls] = {"cagr": cagr, "volatility": vol, "source": source}
 
+    # 4. Blend the per-class stats by the allocation weights.
     blended = blended_portfolio_stats(allocation, market_data)
     expected_return = blended["expected_return"]
     volatility = blended["volatility_upper_bound"]
 
+    # 5. Everything downstream consumes the SAME blended return/volatility — this
+    #    chaining is the whole reason the pipeline lives in Python, not the LLM.
     projection = project_growth(initial, monthly, years, expected_return)
     mc = monte_carlo_simulation(initial, monthly, years, expected_return, volatility, goal=goal)
     feasibility = check_feasibility(initial, monthly, years, expected_return, goal)
     infl_goal = inflation_adjusted_goal(goal, years, inflation)
     tax = apply_ltcg_tax(projection["future_value"], projection["total_invested"])
 
+    # 6. Pre-format every user-facing number into a string the LLM quotes verbatim
+    #    (so the model never regroups digits or rescales lakh/crore itself).
     diff = feasibility["difference"]
     levers = feasibility["to_reach_goal"]
     req_ret = levers["required_annual_return"]
