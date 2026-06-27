@@ -124,10 +124,13 @@ def render_charts(comp: dict) -> None:
         c1, c2, c3 = st.columns(3)
         c1.metric("Projected corpus", f"₹{feas['projected_value']:,.0f}")
         c2.metric("Goal", f"₹{feas['goal']:,.0f}")
+        diff = feas["difference"]
         c3.metric(
             "On track?",
             "Yes ✅" if feas["on_track"] else "Short ⚠️",
-            delta=f"₹{feas['difference']:,.0f}",
+            # Streamlit colors the delta by the leading character, so the sign
+            # must come before the ₹ symbol or a shortfall renders green.
+            delta=f"{'-' if diff < 0 else ''}₹{abs(diff):,.0f}",
         )
 
     tax = comp.get("tax")
