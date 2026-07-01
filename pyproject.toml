@@ -1,0 +1,36 @@
+# Tooling configuration for FinPlan (ruff, mypy, pytest) in one place.
+# There is no build backend here on purpose — the app runs from source; this
+# file exists to give the linter, type checker, and test runner a single home.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "build", "dist", "__pycache__"]
+
+[tool.ruff.lint]
+# A pragmatic core set: pyflakes (F), a subset of pycodestyle (E/W), import
+# sorting (I), pyupgrade (UP), and bugbear (B). E501 (line length) is left off —
+# several docstrings/prompts are intentionally prose-heavy.
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# app.py deliberately calls load_dotenv() before importing streamlit and the agent
+# (the .env must be loaded first), so its module-level imports follow that call.
+"app.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+# Third-party libs (yfinance, langchain, plotly…) ship partial or no stubs;
+# don't fail on their missing annotations. Type checking is scoped in CI to the
+# new API + parsing modules, where our own types matter most.
+ignore_missing_imports = true
+warn_unused_ignores = false
+# Resolve imported first-party modules for type info, but only REPORT problems in
+# the files passed on the command line (keeps the scoped check from failing on the
+# engine's looser annotations).
+follow_imports = "silent"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

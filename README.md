@@ -1,8 +1,11 @@
 # FinPlan — Goal-Based Investment Planner Agent
 
+[![CI](https://github.com/Pranav-Ram-R/Finance-Investment-Agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranav-Ram-R/Finance-Investment-Agent/actions/workflows/ci.yml)
+
 An AI agent that turns a financial **goal** into a personalized, stress-tested
 **investment plan** — and tracks it over time. Built with **LangChain**, real
-market data (**yfinance**), and a swappable, free-tier LLM backend.
+market data (**yfinance**), and a swappable, free-tier LLM backend. Served as an
+**async FastAPI** service and packaged with **Docker**.
 
 > *"I have ₹2,00,000 now, can add ₹15,000/month, and want ₹50,00,000 in 12
 > years at moderate risk."*
@@ -119,6 +122,43 @@ streamlit run app.py        # full chat UI with charts + tool-call trace
 python -m scripts.chat      # or a plain terminal chat
 ```
 
+## REST API
+
+The engine and agent are also exposed as an **async FastAPI** service.
+`/plan` and `/plan/multi` are **fully deterministic — they need no LLM key**
+(the Python engine computes every figure), so a public demo can't burn free-tier
+quota. `/chat` drives the conversational agent and requires a provider key.
+
+```bash
+uvicorn finplan.api.main:app --reload    # http://localhost:8000/docs (OpenAPI UI)
+```
+
+| Method | Path         | Auth        | Description                                            |
+|--------|--------------|-------------|--------------------------------------------------------|
+| GET    | `/healthz`   | none        | Liveness + resolved model config                       |
+| POST   | `/plan`      | none        | Full goal-based plan (deterministic)                   |
+| POST   | `/plan/multi`| none        | Several goals planned independently + combined totals  |
+| POST   | `/chat`      | LLM key     | One conversational agent turn (reply + tool trace)     |
+
+```bash
+curl -X POST http://localhost:8000/plan -H "Content-Type: application/json" \
+  -d '{"initial":"2 lakh","monthly":"15000","years":12,"goal":"50 lakh","risk_tolerance":"medium"}'
+```
+
+Money fields accept lakh/crore words, ₹ symbols, or plain numbers — the unit
+conversion happens in Python (`parse_amount`), never in an LLM.
+
+## Docker
+
+```bash
+docker build -t finplan .
+docker run -p 8000:8000 --env-file .env finplan   # /plan works even with an empty .env
+# or:  docker compose up
+```
+
+Multi-stage build, slim runtime, non-root user, and a `/healthz` container
+healthcheck.
+
 ## Project layout
 
 ```
@@ -136,13 +176,20 @@ finplan/
     tools.py           # 15 LangChain tools wrapping the engine
     prompts.py         # workflow-enforcing system prompt
     planner_agent.py   # create_agent + memory + run_turn
+  api/
+    schemas.py         # Pydantic request/response models (money as text -> ₹)
+    main.py            # FastAPI app: /healthz /plan /plan/multi /chat
   memory/
     store.py           # SQLite: persistent plans + progress
 scripts/
   demo_engine.py       # end-to-end engine demo (no API key needed)
   chat.py              # terminal chat with the agent
-tests/                 # 48 unit tests (engine, memory, UI boot) + opt-in live
+tests/                 # unit tests (engine, memory, API, UI boot) + opt-in live
 app.py                 # Streamlit UI (chat + charts + tool-call trace)
+Dockerfile             # multi-stage image serving the API
+docker-compose.yml     # local orchestration (api [+ optional ui])
+pyproject.toml         # ruff / mypy / pytest config
+.github/workflows/ci.yml  # CI: ruff + mypy + pytest (no secrets needed)
 ```
 
 ## Roadmap
@@ -156,6 +203,10 @@ app.py                 # Streamlit UI (chat + charts + tool-call trace)
 - [x] Tax-aware: post-tax corpus via a deterministic LTCG estimate (12.5% over ₹1.25L)
 - [x] Multi-goal planning: plan several goals at once with combined totals
 - [x] News-sentiment "market mood" tool (yfinance headlines + a finance lexicon)
+- [x] Async **FastAPI** service (OpenAPI docs; deterministic `/plan` needs no key)
+- [x] **Docker** image + compose; **GitHub Actions** CI (ruff + mypy + pytest)
+- [ ] Live public deployment (Streamlit Community Cloud / Render Docker)
+- [ ] Agent evaluation harness (golden set + LLM-as-judge)
 
 ## Disclaimer
 

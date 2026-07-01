@@ -13,12 +13,12 @@ from langchain_core.tools import tool
 
 from finplan.memory import store
 from finplan.parsing import parse_amount
-from finplan.tools.news import get_news_sentiment as _get_news_sentiment
 from finplan.planner import _class_stats
 from finplan.planner import generate_multi_goal_plan as _generate_multi_goal_plan
 from finplan.planner import generate_plan as _generate_plan
 from finplan.tools.feasibility import check_feasibility as _check_feasibility
 from finplan.tools.feasibility import inflation_adjusted_goal as _inflation_adjusted_goal
+from finplan.tools.news import get_news_sentiment as _get_news_sentiment
 from finplan.tools.projection import future_value
 from finplan.tools.projection import project_growth as _project_growth
 from finplan.tools.risk import assess_risk_profile as _assess_risk_profile
