@@ -159,6 +159,28 @@ docker run -p 8000:8000 --env-file .env finplan   # /plan works even with an emp
 Multi-stage build, slim runtime, non-root user, and a `/healthz` container
 healthcheck.
 
+## Deploy a live demo
+
+- **API → Render** (free): New → **Blueprint** → point at this repo. The included
+  [`render.yaml`](render.yaml) builds from the `Dockerfile`; set `GROQ_API_KEY` in
+  the dashboard. `/plan` works even before you add a key.
+- **UI → Streamlit Community Cloud** (free, zero-infra): connect the repo, pick
+  `app.py`, and add `GROQ_API_KEY` in the app's **Secrets**. One-click public link.
+
+## Observability & evaluation
+
+- **Per-turn metrics** — the `/chat` response carries a `metrics` block (token
+  usage, latency, and LLM/tool call counts) from a LangChain callback
+  ([`finplan/observability.py`](finplan/observability.py)).
+- **Agent evaluation** — a golden set + three deterministic checks (tool
+  selection, input extraction, and *numeric grounding* — that the reply quotes the
+  engine's figures verbatim), with an optional LLM-as-judge:
+
+  ```bash
+  python -m finplan.eval           # pass-rate report (needs an LLM key)
+  python -m finplan.eval --judge   # also rate explanation quality 1-5
+  ```
+
 ## Project layout
 
 ```
@@ -179,15 +201,18 @@ finplan/
   api/
     schemas.py         # Pydantic request/response models (money as text -> ₹)
     main.py            # FastAPI app: /healthz /plan /plan/multi /chat
+  eval/                # agent eval: golden set + scoring + `python -m finplan.eval`
+  observability.py     # token/latency/tool metrics callback + structured logging
   memory/
     store.py           # SQLite: persistent plans + progress
 scripts/
   demo_engine.py       # end-to-end engine demo (no API key needed)
   chat.py              # terminal chat with the agent
-tests/                 # unit tests (engine, memory, API, UI boot) + opt-in live
+tests/                 # unit tests (engine, memory, API, eval, obs) + opt-in live
 app.py                 # Streamlit UI (chat + charts + tool-call trace)
 Dockerfile             # multi-stage image serving the API
 docker-compose.yml     # local orchestration (api [+ optional ui])
+render.yaml            # one-click Render (Docker) deploy blueprint
 pyproject.toml         # ruff / mypy / pytest config
 .github/workflows/ci.yml  # CI: ruff + mypy + pytest (no secrets needed)
 ```
@@ -205,8 +230,9 @@ pyproject.toml         # ruff / mypy / pytest config
 - [x] News-sentiment "market mood" tool (yfinance headlines + a finance lexicon)
 - [x] Async **FastAPI** service (OpenAPI docs; deterministic `/plan` needs no key)
 - [x] **Docker** image + compose; **GitHub Actions** CI (ruff + mypy + pytest)
-- [ ] Live public deployment (Streamlit Community Cloud / Render Docker)
-- [ ] Agent evaluation harness (golden set + LLM-as-judge)
+- [x] **Observability**: per-turn token/latency/tool metrics on `/chat`
+- [x] **Agent evaluation** harness (golden set, 3 checks + optional LLM-as-judge)
+- [x] One-click **deploy** blueprint (`render.yaml`) + Streamlit Cloud steps
 
 ## Disclaimer
 

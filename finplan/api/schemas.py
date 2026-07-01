@@ -121,3 +121,5 @@ class ChatResponse(BaseModel):
     reply: str
     trace: list[str]
     tool_outputs: dict[str, Any]
+    # Per-turn observability: token usage, latency, and LLM/tool call counts.
+    metrics: dict[str, Any]

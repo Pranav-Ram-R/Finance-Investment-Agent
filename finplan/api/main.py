@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from functools import lru_cache
 from typing import Any
 
@@ -31,10 +32,14 @@ from finplan.api.schemas import (
     PlanResponse,
 )
 from finplan.config import describe_config
+from finplan.observability import MetricsCallbackHandler, configure_logging
 from finplan.planner import generate_multi_goal_plan as _generate_multi_goal_plan
 from finplan.planner import generate_plan as _generate_plan
 
 VERSION = "1.0.0"
+
+# Structured logging for the metrics handler (token/latency/tool events).
+configure_logging()
 
 app = FastAPI(
     title="FinPlan API",
@@ -132,13 +137,18 @@ def _capture_turn(messages: list) -> tuple[list[str], dict[str, Any]]:
 
 
 def _run_agent_turn(message: str, thread_id: str) -> ChatResponse:
+    # One metrics handler per turn; it accumulates token/tool/LLM counts while the
+    # agent runs. Latency is measured around the whole turn.
+    handler = MetricsCallbackHandler()
+    started = time.perf_counter()
     result = _agent().invoke(
         {"messages": [{"role": "user", "content": message}]},
-        config={"configurable": {"thread_id": thread_id}},
+        config={"configurable": {"thread_id": thread_id}, "callbacks": [handler]},
     )
+    metrics = {**handler.summary(), "latency_s": round(time.perf_counter() - started, 2)}
     trace, captured = _capture_turn(result["messages"])
     reply = content_to_text(result["messages"][-1].content)
-    return ChatResponse(reply=reply, trace=trace, tool_outputs=captured)
+    return ChatResponse(reply=reply, trace=trace, tool_outputs=captured, metrics=metrics)
 
 
 @app.post("/chat", response_model=ChatResponse, tags=["agent"])

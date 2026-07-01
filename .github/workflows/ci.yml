@@ -28,8 +28,8 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
 
-      - name: Type-check (mypy, scoped to API + parsing)
-        run: mypy finplan/api finplan/parsing.py
+      - name: Type-check (mypy, scoped to API + parsing + observability + eval)
+        run: mypy finplan/api finplan/observability.py finplan/eval finplan/parsing.py
 
       - name: Test (pytest, offline)
         # RUN_LIVE_AGENT_TEST is unset, so the live LLM test is skipped — the

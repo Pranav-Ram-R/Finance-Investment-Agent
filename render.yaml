@@ -1,0 +1,18 @@
+# Render blueprint — deploys the FastAPI service straight from the Dockerfile.
+# On Render: New → Blueprint → point at this repo. Set GROQ_API_KEY in the
+# dashboard (sync:false keeps it out of git). The free plan is enough; /plan
+# works even without a key, /chat needs one.
+services:
+  - type: web
+    name: finplan-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ORCHESTRATOR_MODEL
+        value: groq:llama-3.3-70b-versatile
+      - key: ADVISOR_MODEL
+        value: groq:llama-3.3-70b-versatile
