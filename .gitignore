@@ -10,3 +10,6 @@ venv/
 
 # Personal interview-prep material — kept out of the repo for now.
 docs/
+
+# Claude Code working directory (worktrees, plans, local settings).
+.claude/
