@@ -1,0 +1,26 @@
+# Local orchestration. `docker compose up` builds and serves the API on :8000.
+# The deterministic /plan endpoint needs no key; /chat needs a provider key from
+# .env (create it first: `cp .env.example .env`).
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  # Optional Streamlit UI (chat + charts), sharing the same image.
+  # Uncomment to run it alongside the API:  docker compose up
+  # ui:
+  #   build: .
+  #   command: >
+  #     streamlit run app.py
+  #     --server.port 8501 --server.address 0.0.0.0
+  #   ports:
+  #     - "8501:8501"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - api
