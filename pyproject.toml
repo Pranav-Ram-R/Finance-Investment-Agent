@@ -34,3 +34,6 @@ follow_imports = "silent"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Put the repo root on sys.path so `import finplan` works under a bare `pytest`
+# invocation (CI), not just `python -m pytest` (which adds the CWD itself).
+pythonpath = ["."]
