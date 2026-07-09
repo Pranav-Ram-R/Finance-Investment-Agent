@@ -152,6 +152,7 @@ app.py                 # Streamlit UI (chat + charts + tool-call trace)
       Monte-Carlo, feasibility solvers (corrupt-tick handling)
 - [x] LangChain agent (`create_agent`, 15 tools) + conversation & SQLite memory
 - [x] Streamlit UI with allocation, projection + Monte-Carlo charts, tool trace
+      (figures formatted via `format_inr`; charts have hover tooltips)
 - [x] Runs on LangGraph under the hood (the agent graph is already inspectable)
 - [x] Tax-aware: post-tax corpus via a deterministic LTCG estimate (12.5% over ₹1.25L)
 - [x] Multi-goal planning: plan several goals at once with combined totals

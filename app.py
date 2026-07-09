@@ -21,6 +21,7 @@ import streamlit as st
 
 from finplan.agent.planner_agent import build_agent, content_to_text
 from finplan.config import describe_config
+from finplan.parsing import format_inr
 
 st.set_page_config(page_title="FinPlan — Goal-Based Investment Planner", page_icon="📈", layout="wide")
 
@@ -122,23 +123,23 @@ def render_charts(comp: dict) -> None:
 
     if feas:
         c1, c2, c3 = st.columns(3)
-        c1.metric("Projected corpus", f"₹{feas['projected_value']:,.0f}")
-        c2.metric("Goal", f"₹{feas['goal']:,.0f}")
+        c1.metric("Projected corpus", format_inr(feas["projected_value"]))
+        c2.metric("Goal", format_inr(feas["goal"]))
         diff = feas["difference"]
         c3.metric(
             "On track?",
             "Yes ✅" if feas["on_track"] else "Short ⚠️",
             # Streamlit colors the delta by the leading character, so the sign
             # must come before the ₹ symbol or a shortfall renders green.
-            delta=f"{'-' if diff < 0 else ''}₹{abs(diff):,.0f}",
+            delta=f"{'-' if diff < 0 else ''}{format_inr(abs(diff))}",
         )
 
     tax = comp.get("tax")
     if tax:
         st.caption(
             f"After estimated LTCG tax (12.5% over a ₹1.25L exemption): "
-            f"**₹{tax['post_tax_corpus']:,.0f}** post-tax corpus "
-            f"(est. tax ₹{tax['estimated_tax']:,.0f}). Not tax advice."
+            f"**{format_inr(tax['post_tax_corpus'])}** post-tax corpus "
+            f"(est. tax {format_inr(tax['estimated_tax'])}). Not tax advice."
         )
 
     left, right = st.columns(2)
@@ -153,7 +154,11 @@ def render_charts(comp: dict) -> None:
         xs = [p["year"] for p in traj]
         ys = [p["value"] for p in traj]
         fig = go.Figure()
-        fig.add_scatter(x=xs, y=ys, mode="lines+markers", name="Projected (expected return)")
+        fig.add_scatter(
+            x=xs, y=ys, mode="lines+markers", name="Projected (expected return)",
+            text=[format_inr(y) for y in ys],
+            hovertemplate="Year %{x}: %{text}<extra></extra>",
+        )
         if mc:
             # Overlay the Monte-Carlo uncertainty at the final year: a thick p10–p90
             # bar plus a median diamond, so the chart shows a RANGE, not one number.
@@ -161,12 +166,18 @@ def render_charts(comp: dict) -> None:
             fig.add_scatter(
                 x=[yr, yr], y=[mc["p10"], mc["p90"]], mode="lines",
                 name="Monte-Carlo p10–p90", line=dict(width=10), opacity=0.4,
+                text=[format_inr(mc["p10"]), format_inr(mc["p90"])],
+                hovertemplate="%{text}<extra>p10–p90</extra>",
             )
-            fig.add_scatter(x=[yr], y=[mc["median"]], mode="markers",
-                            name="MC median", marker=dict(size=12, symbol="diamond"))
+            fig.add_scatter(
+                x=[yr], y=[mc["median"]], mode="markers",
+                name="MC median", marker=dict(size=12, symbol="diamond"),
+                text=[format_inr(mc["median"])],
+                hovertemplate="%{text}<extra>MC median</extra>",
+            )
         if goal:
             # Dashed horizontal line = the target, so "over/under" is visible at a glance.
-            fig.add_hline(y=goal, line_dash="dash", annotation_text="Goal")
+            fig.add_hline(y=goal, line_dash="dash", annotation_text=f"Goal {format_inr(goal)}")
         fig.update_layout(title="Projected growth vs goal", xaxis_title="Year",
                           yaxis_title="₹", margin=dict(t=40, b=0))
         right.plotly_chart(fig, use_container_width=True)
@@ -174,8 +185,8 @@ def render_charts(comp: dict) -> None:
     if mc and goal:
         st.info(
             f"**Monte-Carlo:** {mc['probability_of_reaching_goal'] * 100:.0f}% chance of reaching "
-            f"₹{goal:,.0f}. Range at horizon: ₹{mc['p10']:,.0f} (p10) → "
-            f"₹{mc['median']:,.0f} (median) → ₹{mc['p90']:,.0f} (p90)."
+            f"{format_inr(goal)}. Range at horizon: {format_inr(mc['p10'])} (p10) → "
+            f"{format_inr(mc['median'])} (median) → {format_inr(mc['p90'])} (p90)."
         )
 
 
