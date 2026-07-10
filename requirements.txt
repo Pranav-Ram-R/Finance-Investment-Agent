@@ -11,7 +11,8 @@ numpy>=1.26.0
 # --- App & tooling ---
 python-dotenv>=1.0.0
 streamlit>=1.30.0
-plotly>=5.18.0
+plotly>=5.18.0                  # interactive charts in the Streamlit app
+matplotlib>=3.8.0               # static charts for the notebook walkthrough (render on GitHub)
 pytest>=8.0.0
 
 # --- Optional providers (uncomment if you set them in .env) ---

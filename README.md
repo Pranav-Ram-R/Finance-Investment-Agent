@@ -110,6 +110,10 @@ python -m scripts.demo_engine
 Chains every tool on live market data: risk profile → allocation → real
 return/risk → blended stats → projection → Monte-Carlo range → feasibility.
 
+**Prefer a notebook?** [`notebooks/finplan_demo.ipynb`](notebooks/finplan_demo.ipynb) walks the same
+pipeline step-by-step with charts and narrative (also no API key needed), then shows the one-call
+`generate_plan()` and an optional agent section. Charts are static (matplotlib), so they render on GitHub.
+
 ## Run the app
 
 Add a free API key to `.env` (`GOOGLE_API_KEY` or `GROQ_API_KEY`), then:
@@ -142,6 +146,8 @@ scripts/
   demo_engine.py       # end-to-end engine demo (no API key needed)
   chat.py              # terminal chat with the agent
 tests/                 # 48 unit tests (engine, memory, UI boot) + opt-in live
+notebooks/
+  finplan_demo.ipynb   # interactive walkthrough of the engine (+ optional agent)
 app.py                 # Streamlit UI (chat + charts + tool-call trace)
 ```
 
