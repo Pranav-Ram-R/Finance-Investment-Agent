@@ -8,5 +8,6 @@ venv/
 .pytest_cache/
 .DS_Store
 
-# Personal interview-prep material — kept out of the repo for now.
+# Personal interview-prep / design notes — kept out of the repo for now.
 docs/
+ARCHITECTURE.md

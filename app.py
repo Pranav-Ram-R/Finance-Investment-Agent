@@ -87,13 +87,14 @@ def invoke_agent(user_msg: str, thread_id: str):
 
 
 def extract_chart_components(cap: dict) -> dict:
-    """Pull the chart pieces (alloc/proj/mc/feas) out of one turn's tool outputs.
+    """Pull the chart pieces (alloc/proj/mc/feas/tax/goal) out of one turn's tool outputs.
 
     A full plan comes from ``generate_plan``; a follow-up "what-if" turn instead
     calls the granular tools. Granular outputs are applied AFTER the plan so a
-    recomputed projection/Monte-Carlo/feasibility overrides the now-stale plan
-    value, while pieces the turn didn't touch (e.g. allocation) are left absent
-    and preserved by the caller's per-component merge.
+    recomputed projection/Monte-Carlo/feasibility/goal/tax overrides the now-stale
+    plan value, while pieces the turn didn't touch (e.g. allocation) are left absent
+    and preserved by the caller's per-component merge. Every tool that yields a
+    charted quantity is mapped here, so any what-if updates the dashboard.
     """
     out: dict = {}
     gp = cap.get("generate_plan")
@@ -103,6 +104,10 @@ def extract_chart_components(cap: dict) -> dict:
         out["mc"] = gp.get("monte_carlo")
         out["feas"] = gp.get("feasibility")
         out["tax"] = gp.get("tax")
+        # A fresh full plan resets the goal line to its own nominal goal, so a
+        # stale inflation-adjusted goal from an earlier turn can't linger.
+        if gp.get("feasibility"):
+            out["goal"] = gp["feasibility"].get("goal")
     granular_alloc = (cap.get("get_portfolio_market_data") or cap.get("recommend_allocation") or {}).get("allocation")
     if granular_alloc:
         out["alloc"] = granular_alloc
@@ -110,8 +115,17 @@ def extract_chart_components(cap: dict) -> dict:
         out["proj"] = cap["project_growth"]
     if cap.get("run_monte_carlo"):
         out["mc"] = cap["run_monte_carlo"]
+        out["goal"] = cap["run_monte_carlo"].get("goal")
     if cap.get("check_feasibility"):
         out["feas"] = cap["check_feasibility"]
+        out["goal"] = cap["check_feasibility"].get("goal")
+    if cap.get("inflation_adjusted_goal"):
+        # An inflation what-if only moves the goal line to the future rupees
+        # actually needed; every other chart piece is left untouched (and the
+        # metrics row re-derives on-track against this new target).
+        out["goal"] = cap["inflation_adjusted_goal"].get("future_value_needed")
+    if cap.get("estimate_ltcg_tax"):
+        out["tax"] = cap["estimate_ltcg_tax"]
     return {k: v for k, v in out.items() if v}
 
 
@@ -119,16 +133,25 @@ def render_charts(comp: dict) -> None:
     """Render allocation pie, projection-vs-goal chart, and headline metrics."""
     alloc, proj = comp.get("alloc"), comp.get("proj")
     mc, feas = comp.get("mc"), comp.get("feas")
-    goal = (feas or {}).get("goal") or (mc or {}).get("goal")
+    # A dedicated `goal` component (e.g. moved by an inflation what-if) wins over
+    # the goal baked into feasibility/Monte-Carlo, so the goal line and the
+    # metrics below always reflect the latest target.
+    goal = comp.get("goal") or (feas or {}).get("goal") or (mc or {}).get("goal")
 
     if feas:
+        projected = feas["projected_value"]
+        goal_val = goal or feas["goal"]
+        # Re-derive surplus/shortfall against the EFFECTIVE goal so an inflation
+        # what-if that lifts the target flips "On track" to "Short" consistently
+        # with the moved goal line. Both figures are tool-computed; this is only
+        # a display subtraction, never the LLM doing arithmetic.
+        diff = projected - goal_val
         c1, c2, c3 = st.columns(3)
-        c1.metric("Projected corpus", format_inr(feas["projected_value"]))
-        c2.metric("Goal", format_inr(feas["goal"]))
-        diff = feas["difference"]
+        c1.metric("Projected corpus", format_inr(projected))
+        c2.metric("Goal", format_inr(goal_val))
         c3.metric(
             "On track?",
-            "Yes ✅" if feas["on_track"] else "Short ⚠️",
+            "Yes ✅" if projected >= goal_val else "Short ⚠️",
             # Streamlit colors the delta by the leading character, so the sign
             # must come before the ₹ symbol or a shortfall renders green.
             delta=f"{'-' if diff < 0 else ''}{format_inr(abs(diff))}",

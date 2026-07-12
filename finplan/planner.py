@@ -47,12 +47,20 @@ def generate_plan(
     goal: float,
     risk_tolerance: str = "medium",
     inflation: float = 0.06,
+    target_inflation_adjusted: bool = False,
 ) -> dict:
     """Run the entire goal-based plan deterministically and return every figure.
 
     Each step uses the previous step's exact output — risk profile drives the
     allocation, the allocation + real market data drive the blended return, and
     that return drives the projection, Monte-Carlo, and feasibility checks.
+
+    ``target_inflation_adjusted`` measures success against tomorrow's rupees:
+    when True, the goal-dependent steps (Monte-Carlo probability, the feasibility
+    gap, and — crucially — the required-SIP/years/return levers) target the
+    inflation-adjusted goal instead of today's number, so every figure is
+    self-consistent for a "plan for my goal in real terms" request. The
+    projection and tax are goal-independent and are unchanged either way.
     """
     # 1. Risk profile from horizon + stated tolerance.
     profile_info = assess_risk_profile(years, risk_tolerance)
@@ -75,10 +83,14 @@ def generate_plan(
 
     # 5. Everything downstream consumes the SAME blended return/volatility — this
     #    chaining is the whole reason the pipeline lives in Python, not the LLM.
-    projection = project_growth(initial, monthly, years, expected_return)
-    mc = monte_carlo_simulation(initial, monthly, years, expected_return, volatility, goal=goal)
-    feasibility = check_feasibility(initial, monthly, years, expected_return, goal)
     infl_goal = inflation_adjusted_goal(goal, years, inflation)
+    # The goal-dependent steps measure against `effective_goal`: the nominal goal
+    # normally, or the inflation-adjusted goal when the user wants real-terms
+    # feasibility. The levers below are then solved against that SAME target.
+    effective_goal = infl_goal if target_inflation_adjusted else goal
+    projection = project_growth(initial, monthly, years, expected_return)
+    mc = monte_carlo_simulation(initial, monthly, years, expected_return, volatility, goal=effective_goal)
+    feasibility = check_feasibility(initial, monthly, years, expected_return, effective_goal)
     tax = apply_ltcg_tax(projection["future_value"], projection["total_invested"])
 
     # 6. Pre-format every user-facing number into a string the LLM quotes verbatim
@@ -90,7 +102,15 @@ def generate_plan(
         "expected_return": f"{expected_return * 100:.2f}%",
         "volatility": f"{volatility * 100:.2f}%",
         "projected_corpus": format_inr(projection["future_value"]),
-        "goal": format_inr(goal),
+        # `goal` is the target the levers/gap are measured against (nominal, or
+        # the inflated figure when target_inflation_adjusted); `nominal_goal`
+        # always keeps today's number visible for context.
+        "goal": format_inr(effective_goal),
+        "nominal_goal": format_inr(goal),
+        "target_basis": (
+            "inflation-adjusted (future ₹)" if target_inflation_adjusted
+            else "nominal (today's ₹)"
+        ),
         "median_outcome": format_inr(mc["median"]),
         "range_p10_to_p90": f"{format_inr(mc['p10'])} to {format_inr(mc['p90'])}",
         "probability_of_goal": f"{mc['probability_of_reaching_goal'] * 100:.1f}%",

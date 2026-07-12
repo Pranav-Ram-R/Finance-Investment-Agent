@@ -38,6 +38,35 @@ def test_generate_plan_chains_values(monkeypatch):
     assert s["estimated_ltcg_tax"].startswith("₹")
 
 
+def test_inflation_adjusted_target_resolves_levers_against_inflated_goal(monkeypatch):
+    monkeypatch.setattr(planner, "_class_stats", lambda cls, period="10y": _FIXED[cls])
+    nominal = generate_plan(0, 15_000, 12, 5_000_000, "moderate", inflation=0.06)
+    real = generate_plan(0, 15_000, 12, 5_000_000, "moderate", inflation=0.06,
+                         target_inflation_adjusted=True)
+
+    infl_goal = nominal["inflation_adjusted_goal"]
+    assert infl_goal > 5_000_000
+
+    # The goal-dependent steps now target the inflated goal...
+    assert nominal["feasibility"]["goal"] == 5_000_000
+    assert real["feasibility"]["goal"] == infl_goal
+    assert real["monte_carlo"]["goal"] == infl_goal
+
+    # ...so the levers (the whole point) are re-solved and strictly harder.
+    n_lev, r_lev = nominal["feasibility"]["to_reach_goal"], real["feasibility"]["to_reach_goal"]
+    assert r_lev["required_monthly"] > n_lev["required_monthly"]
+    assert (r_lev["required_annual_return"] or 0) > (n_lev["required_annual_return"] or 0)
+
+    # Goal-independent steps are untouched by the flag.
+    assert real["projection"] == nominal["projection"]
+    assert real["tax"] == nominal["tax"]
+
+    # The summary flags the basis and keeps the nominal goal visible.
+    assert real["summary"]["target_basis"] == "inflation-adjusted (future ₹)"
+    assert nominal["summary"]["target_basis"] == "nominal (today's ₹)"
+    assert real["summary"]["nominal_goal"] == "₹50,00,000"
+
+
 def test_generate_plan_respects_risk_tolerance(monkeypatch):
     monkeypatch.setattr(planner, "_class_stats", lambda cls, period="10y": _FIXED[cls])
     conservative = generate_plan(0, 10_000, 12, 1_000_000, "low")

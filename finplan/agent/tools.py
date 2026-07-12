@@ -39,7 +39,8 @@ CURRENT_USER = "default_user"
 # --------------------------------------------------------------------------- #
 @tool
 def generate_plan(
-    initial: Amount, monthly: Amount, years: float, goal: Amount, risk_tolerance: str = "medium"
+    initial: Amount, monthly: Amount, years: float, goal: Amount,
+    risk_tolerance: str = "medium", target_inflation_adjusted: bool = False,
 ) -> dict:
     """Build a COMPLETE goal-based investment plan in one call — use this first.
 
@@ -52,9 +53,17 @@ def generate_plan(
     Runs the entire pipeline — risk profiling, allocation, REAL market data,
     blended return/risk, projection, Monte-Carlo, feasibility, inflation — and
     returns every figure, each computed from the previous step.
+
+    Set ``target_inflation_adjusted=True`` when the user wants the plan measured
+    in REAL terms — e.g. "adjust my target for inflation", "will I hit my goal in
+    today's money", "plan against the inflated goal". Re-call this tool with the
+    SAME initial/monthly/years/goal/risk as the existing plan plus this flag; it
+    re-solves the required SIP, years, return, gap, and goal probability against
+    the inflation-adjusted goal so every figure stays consistent.
     """
     return _generate_plan(
-        parse_amount(initial), parse_amount(monthly), years, parse_amount(goal), risk_tolerance
+        parse_amount(initial), parse_amount(monthly), years, parse_amount(goal),
+        risk_tolerance, target_inflation_adjusted=target_inflation_adjusted,
     )
 
 

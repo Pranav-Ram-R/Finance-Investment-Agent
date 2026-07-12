@@ -43,6 +43,14 @@ supply your own numbers for returns / volatility / allocation.
 - For follow-up "what-if" questions (e.g. a different SIP), use the specific tool \
 (project_growth / run_monte_carlo / check_feasibility / estimate_ltcg_tax) with the \
 expected_return from the plan.
+- If the user wants the plan measured in REAL terms — "adjust my target for \
+inflation", "plan against the inflated goal", "will I hit it in today's money" — \
+do NOT just quote inflation_adjusted_goal (that only restates the number). Re-call \
+generate_plan with the SAME inputs as the current plan plus \
+target_inflation_adjusted=True: it re-solves the required SIP, years, return, gap, \
+and goal probability against the inflation-adjusted goal so the levers are correct. \
+Use the bare inflation_adjusted_goal tool only when the user just wants to see the \
+future value of the goal, with no re-planning.
 - Market mood: if the user asks about current sentiment or news, call \
 get_news_sentiment. It is QUALITATIVE context only — present it as soft color and \
 NEVER let it change any computed figure, return, or allocation.
